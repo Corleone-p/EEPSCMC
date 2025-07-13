@@ -1,0 +1,100 @@
+package algorithms_new;
+
+import entity.Task;
+import utils.ArrayUtils;
+import utils.MC_QPA;
+
+import java.util.List;
+
+import static utils.StaticParameters.M;
+
+public class CA_BFD_NFD {
+    public static int CA_BFD_NFD_Partitioning(List<Task> Task_HI, List<Task> Task_LO, List<Task>[] M_List){
+        M_List = ArrayUtils.listArrayInitializationOfProcessor(M_List);//用于处理器中存放的任务
+        double[] ULO = ArrayUtils.arrayInitializationOne();   //初始化，表示第i个处理器的ULO剩余利用率
+        double[] UHI = ArrayUtils.arrayInitializationOne();   //初始化，表示第i个处理器的UHI剩余利用率
+
+        int count_HI = Task_HI.size();
+        int count_LO = Task_LO.size();
+
+        int position_HI = 0;
+        int position_LO = 0;
+
+        double uiLO, uiHI;  //任务i的利用率
+
+        double min_residual;  //最大剩余利用率
+        int min_M;   //最大剩余利用率的处理器
+        while (position_HI < count_HI || position_LO < count_LO) {
+            //高关键层次任务采用BFD
+            if (position_HI < count_HI) {
+                uiHI = Task_HI.get(position_HI).getUi_HI();
+                uiLO = Task_HI.get(position_HI).getUi_LO();
+                //int num = Task_HI.get(position_HI).getNum();
+                min_residual = 99;
+                min_M = 0;
+                for (int i = 1; i <= M; i++) {   //遍历处理器
+                    if (UHI[i] >= uiHI && ULO[i] >= uiLO) {  //判断当前任务是否可放入该处理器
+
+                        M_List[i].add(Task_HI.get(position_HI));  //把该任务放入处理器
+
+                        if (MC_QPA.Dbf_Schedule(M_List[i]) == 1) {  //判断当前处理器是否满足可行性条件
+
+                            M_List[i].remove(Task_HI.get(position_HI));    //从处理器中移除该任务
+
+                            if (min_residual > UHI[i] - uiHI) {             //记录当前处理器利用率的剩余空间和最小剩余空间的处理器位置
+                                min_residual = UHI[i] - uiHI;
+                                min_M = i;
+                            }
+                        } else {
+                            M_List[i].remove(Task_HI.get(position_HI));    //从处理器中移除该任务
+                        }
+
+                    }
+                }
+                if (min_residual == 99) {
+                    return 0;
+                } else {
+                    UHI[min_M] -= uiHI;
+                    ULO[min_M] -= uiLO;
+                    M_List[min_M].add(Task_HI.get(position_HI)); //把任务放入该处理器中
+                    position_HI++;
+                    //System.out.println("处理器:" + min_M + " HI任务" + num + ":已放入");
+                }
+
+            }//低关键层次任务采用NFD
+            else if (position_LO < count_LO) {
+
+                uiHI = Task_LO.get(position_LO).getUi_HI();
+                uiLO = Task_LO.get(position_LO).getUi_LO();
+                int count_M = 0;
+                int curr_processor = 1;   //当前处理器
+                while (count_M < M) {
+
+                    if (UHI[curr_processor] >= uiHI && ULO[curr_processor] >= uiLO) {
+                        M_List[curr_processor].add(Task_LO.get(position_LO));  //把该任务放入处理器
+                        if (MC_QPA.Dbf_Schedule(M_List[curr_processor]) == 1) {  //判断当前处理器是否满足可行性条件)
+                            UHI[curr_processor] -= uiHI;
+                            ULO[curr_processor] -= uiLO;
+                            //System.out.println(Task_HI.get(position_HI));
+                            position_LO++;
+                            //System.out.println("处理器:" + i + " HI任务" + num + ":已放入");
+                            break;
+                        } else {
+                            M_List[curr_processor].remove(Task_LO.get(position_LO));    //从处理器中移除该任务
+                        }
+
+                    }
+                    count_M++;
+                    curr_processor = (curr_processor + 1) % M;
+                    if (curr_processor == 0)
+                        curr_processor = M;
+                }
+                if (count_M == M) {
+                    return 0;
+                }
+
+            }
+        }
+        return 1;
+    }
+}
